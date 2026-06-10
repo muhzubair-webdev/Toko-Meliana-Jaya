@@ -25,17 +25,21 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // ─── Products (All users can view, admin can create/edit/delete) ──
-    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-    Route::post('/products', [ProductController::class, 'store'])->name('products.store')->middleware('admin');
-    Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update')->middleware('admin');
-    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy')->middleware('admin');
+    // ─── Products (Admin only) ───────────────────────────────────────
+    Route::middleware('admin')->group(function () {
+        Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+        Route::post('/products', [ProductController::class, 'store'])->name('products.store');
+        Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+    });
 
-    // ─── Stock Units (All users can view & add inbound) ──────────────
-    Route::get('/stock', [StockUnitController::class, 'index'])->name('stock.index');
-    Route::post('/stock', [StockUnitController::class, 'store'])->name('stock.store');
-    Route::get('/stock/{stockUnit}/print-qr', [StockUnitController::class, 'printQr'])->name('stock.printQr');
-    Route::post('/stock/{stockUnit}/adjust', [StockUnitController::class, 'adjust'])->name('stock.adjust');
+    // ─── Stock Units (Admin only) ────────────────────────────────────
+    Route::middleware('admin')->group(function () {
+        Route::get('/stock', [StockUnitController::class, 'index'])->name('stock.index');
+        Route::post('/stock', [StockUnitController::class, 'store'])->name('stock.store');
+        Route::get('/stock/{stockUnit}/print-qr', [StockUnitController::class, 'printQr'])->name('stock.printQr');
+        Route::post('/stock/{stockUnit}/adjust', [StockUnitController::class, 'adjust'])->name('stock.adjust');
+    });
 
     // ─── Sales (All users can create sales) ──────────────────────────
     Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');

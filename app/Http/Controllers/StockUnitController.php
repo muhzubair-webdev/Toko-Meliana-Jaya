@@ -59,6 +59,7 @@ class StockUnitController extends Controller
             'quantity' => 'required|integer|min:1|max:100',
             'purchase_price' => 'required|numeric|min:0',
             'received_date' => 'required|date',
+            'notes' => 'nullable|string|max:255',
         ]);
 
         $product = Product::with('category')->findOrFail($validated['product_id']);
@@ -73,6 +74,7 @@ class StockUnitController extends Controller
                 'purchase_price' => $validated['purchase_price'],
                 'status' => StockUnit::STATUS_TERSEDIA,
                 'received_date' => $validated['received_date'],
+                'notes' => $validated['notes'] ?? null,
             ]);
 
             $createdUnits[] = $unit;

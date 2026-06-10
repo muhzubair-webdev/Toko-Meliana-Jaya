@@ -14,6 +14,7 @@ class StockUnit extends Model
         'purchase_price',
         'status',
         'received_date',
+        'notes',
     ];
 
     protected $casts = [

@@ -20,6 +20,7 @@
                                 <option value="penjualan" {{ $reportType=='penjualan'?'selected':'' }}>Laporan Penjualan (Laba/Rugi)</option>
                                 <option value="stok" {{ $reportType=='stok'?'selected':'' }}>Laporan Nilai Stok Tersisa</option>
                                 <option value="adjustment" {{ $reportType=='adjustment'?'selected':'' }}>Laporan Penyesuaian (Hilang/Rusak)</option>
+                                <option value="masuk" {{ $reportType=='masuk'?'selected':'' }}>Laporan Barang Masuk</option>
                             </select>
                         </div>
                         <div>
@@ -51,10 +52,14 @@
                         <div class="mt-2 text-4xl font-extrabold text-blue-600">Rp {{ number_format($totalStockValue ?? 0, 0, ',', '.') }}</div>
                         <p class="mt-1 text-sm text-blue-600">Total Nilai Stok Tersedia</p>
                         <p class="mt-2 text-sm text-gray-500">{{ isset($stockUnits) ? $stockUnits->count() : 0 }} unit barang tersedia</p>
-                    @else
+                    @elseif($reportType === 'adjustment')
                         <div class="mt-2 text-4xl font-extrabold text-red-600">Rp {{ number_format($totalLoss ?? $monthlyLoss, 0, ',', '.') }}</div>
                         <p class="mt-1 text-sm text-red-600">Total Kerugian</p>
                         <p class="mt-2 text-sm text-gray-500">{{ isset($adjustments) ? $adjustments->count() : 0 }} penyesuaian</p>
+                    @elseif($reportType === 'masuk')
+                        <div class="mt-2 text-4xl font-extrabold text-green-600">Rp {{ number_format($totalEntryValue ?? 0, 0, ',', '.') }}</div>
+                        <p class="mt-1 text-sm text-green-600">Total Nilai Barang Masuk</p>
+                        <p class="mt-2 text-sm text-gray-500">{{ isset($entries) ? $entries->sum('total_units') : 0 }} unit barang masuk</p>
                     @endif
                 </div>
             </div>
@@ -65,7 +70,8 @@
                     <h3 class="text-lg font-medium text-gray-900 dark:text-white">
                         @if($reportType === 'penjualan') Preview Laporan Penjualan ({{ $monthLabel }})
                         @elseif($reportType === 'stok') Daftar Stok Tersedia
-                        @else Riwayat Penyesuaian ({{ $monthLabel }})
+                        @elseif($reportType === 'adjustment') Riwayat Penyesuaian ({{ $monthLabel }})
+                        @elseif($reportType === 'masuk') Laporan Barang Masuk ({{ $monthLabel }})
                         @endif
                     </h3>
                 </div>
@@ -126,7 +132,7 @@
                         </tbody>
                     </table>
 
-                    @else {{-- adjustment --}}
+                    @elseif($reportType === 'adjustment')
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr>
@@ -148,6 +154,32 @@
                             </tr>
                             @empty
                             <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Tidak ada penyesuaian untuk periode ini.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+
+                    @elseif($reportType === 'masuk')
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Tanggal Masuk</th>
+                                <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Produk</th>
+                                <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Catatan / Sumber</th>
+                                <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase text-center">Jml Unit</th>
+                                <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase text-right">Nilai Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            @forelse($entries ?? [] as $entry)
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td class="px-4 py-4 text-sm text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($entry->received_date)->format('d M Y') }}</td>
+                                <td class="px-4 py-4 text-sm text-gray-900 dark:text-white">{{ $entry->product->product_name }}</td>
+                                <td class="px-4 py-4 text-sm text-gray-500">{{ $entry->notes ?: '-' }}</td>
+                                <td class="px-4 py-4 text-sm text-center font-medium text-gray-900 dark:text-white">{{ $entry->total_units }}</td>
+                                <td class="px-4 py-4 text-sm text-right font-medium text-green-600">Rp {{ number_format($entry->total_value, 0, ',', '.') }}</td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Tidak ada barang masuk untuk periode ini.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

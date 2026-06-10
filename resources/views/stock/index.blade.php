@@ -78,6 +78,10 @@
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Masuk</label>
                                 <input type="date" name="received_date" value="{{ date('Y-m-d') }}" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm">
                             </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan / Sumber Barang</label>
+                                <input type="text" name="notes" placeholder="Contoh: Dari Supplier A" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm">
+                            </div>
                         </div>
                         <div class="mt-4 flex justify-end">
                             <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-800 dark:bg-gray-200 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gray-800 uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-white">Simpan & Generate QR</button>

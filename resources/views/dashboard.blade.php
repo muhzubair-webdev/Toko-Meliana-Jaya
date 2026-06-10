@@ -53,7 +53,9 @@
                                             <div class="text-sm text-gray-500">Sisa: {{ $product->available_count }} {{ $product->unit }} (Min: {{ $product->min_stock }} {{ $product->unit }})</div>
                                         </div>
                                     </div>
+                                    @if(auth()->user()->isAdmin())
                                     <a href="{{ route('stock.index', ['product_id' => $product->id]) }}" class="text-brand-600 hover:text-brand-900 text-sm font-medium">Restock</a>
+                                    @endif
                                 </li>
                             @endforeach
                         </ul>
@@ -64,6 +66,8 @@
                         </div>
                     @endif
                 </div>
+            </div>
+
             </div>
 
         </div>

@@ -15,18 +15,22 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @if(auth()->user()->isAdmin())
                     <x-nav-link :href="route('products.index')" :active="request()->routeIs('products.*')">
                         {{ __('Katalog') }}
                     </x-nav-link>
                     <x-nav-link :href="route('stock.index')" :active="request()->routeIs('stock.*')">
                         {{ __('Stok') }}
                     </x-nav-link>
+                    @endif
                     <x-nav-link :href="route('sales.create')" :active="request()->routeIs('sales.*')">
                         {{ __('Jual') }}
                     </x-nav-link>
+                    @if(auth()->user()->isAdmin())
                     <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                         {{ __('Laporan') }}
                     </x-nav-link>
+                    @endif
                 </div>
             </div>
 

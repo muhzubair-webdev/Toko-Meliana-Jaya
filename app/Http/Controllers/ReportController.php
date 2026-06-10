@@ -24,6 +24,7 @@ class ReportController extends Controller
             'penjualan' => $this->salesReport($date),
             'stok' => $this->stockReport(),
             'adjustment' => $this->adjustmentReport($date),
+            'masuk' => $this->entryReport($date),
             default => $this->salesReport($date),
         };
 
@@ -113,6 +114,32 @@ class ReportController extends Controller
             'totalCost' => 0,
             'totalProfit' => 0,
             'monthlyLoss' => $totalLoss,
+        ];
+    }
+
+    /**
+     * Goods entry report.
+     */
+    private function entryReport(Carbon $date): array
+    {
+        $entries = StockUnit::with('product.category')
+            ->selectRaw('received_date, product_id, notes, purchase_price, COUNT(id) as total_units, SUM(purchase_price) as total_value')
+            ->whereMonth('received_date', $date->month)
+            ->whereYear('received_date', $date->year)
+            ->groupBy('received_date', 'product_id', 'notes', 'purchase_price')
+            ->orderBy('received_date', 'desc')
+            ->get();
+
+        $totalEntryValue = $entries->sum('total_value');
+
+        return [
+            'entries' => $entries,
+            'totalEntryValue' => $totalEntryValue,
+            'sales' => collect(),
+            'totalRevenue' => 0,
+            'totalCost' => 0,
+            'totalProfit' => 0,
+            'monthlyLoss' => 0,
         ];
     }
 
