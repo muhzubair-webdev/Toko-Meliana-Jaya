@@ -8,6 +8,7 @@ use App\Models\StockAdjustment;
 use App\Models\StockUnit;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -148,7 +149,37 @@ class ReportController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        // PDF export will be implemented with dompdf package in a later step
-        return back()->with('info', 'Fitur export PDF akan segera tersedia.');
+        $reportType = $request->get('type', 'penjualan');
+        $month = $request->get('month', now()->format('Y-m'));
+        $date = Carbon::createFromFormat('Y-m', $month);
+
+        $data = match ($reportType) {
+            'penjualan' => $this->salesReport($date),
+            'stok' => $this->stockReport(),
+            'adjustment' => $this->adjustmentReport($date),
+            'masuk' => $this->entryReport($date),
+            default => $this->salesReport($date),
+        };
+
+        $titles = [
+            'penjualan' => 'Laporan Penjualan (Laba/Rugi)',
+            'stok' => 'Laporan Nilai Stok Tersisa',
+            'adjustment' => 'Laporan Penyesuaian (Hilang/Rusak)',
+            'masuk' => 'Laporan Barang Masuk',
+        ];
+
+        $pdfData = array_merge($data, [
+            'reportType' => $reportType,
+            'month' => $month,
+            'monthLabel' => $date->translatedFormat('F Y'),
+            'title' => $titles[$reportType] ?? 'Laporan',
+        ]);
+
+        $pdf = Pdf::loadView('reports.pdf', $pdfData);
+        $pdf->setPaper('a4', 'portrait');
+
+        $filename = 'Laporan_' . ucfirst($reportType) . '_' . $date->format('Y_m') . '.pdf';
+
+        return $pdf->download($filename);
     }
 }

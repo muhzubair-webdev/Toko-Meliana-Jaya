@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\LowStockAlert;
 use App\Models\Product;
 use App\Models\StockAdjustment;
 use App\Models\StockUnit;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class StockUnitController extends Controller
 {
@@ -84,20 +87,25 @@ class StockUnitController extends Controller
             ->with('success', count($createdUnits) . ' unit berhasil ditambahkan dengan QR Code.');
     }
 
-    /**
-     * API: Find a stock unit by QR code (for scanner).
-     */
     public function findByQr(Request $request)
     {
         $qrCode = $request->get('code', '');
         $productId = $request->get('product_id', '');
+        $exclude = $request->get('exclude', '');
 
         if ($productId) {
+            $excludeIds = array_filter(explode(',', $exclude));
+            
             // Manual search: find first available unit for this product
-            $unit = StockUnit::with('product.category')
+            $query = StockUnit::with('product.category')
                 ->where('product_id', $productId)
-                ->where('status', 'tersedia')
-                ->first();
+                ->where('status', 'tersedia');
+
+            if (!empty($excludeIds)) {
+                $query->whereNotIn('id', $excludeIds);
+            }
+
+            $unit = $query->first();
         } else {
             // QR scan: find by exact QR code
             $unit = StockUnit::with('product.category')
@@ -106,12 +114,13 @@ class StockUnitController extends Controller
         }
 
         if (!$unit) {
-            return response()->json(['error' => 'Unit tidak ditemukan atau tidak tersedia.'], 404);
+            return response()->json(['error' => 'Unit tidak ditemukan atau tidak tersedia (stok habis).'], 404);
         }
 
         return response()->json([
             'id' => $unit->id,
             'qr_code' => $unit->qr_code,
+            'product_id' => $unit->product_id,
             'product_name' => $unit->product->product_name,
             'category' => $unit->product->category->name,
             'unit' => $unit->product->unit,
@@ -164,6 +173,22 @@ class StockUnitController extends Controller
             'hilang' => 'Hilang',
             'expired' => 'Expired',
         };
+
+        // Check if the adjusted product is now low on stock
+        $product = Product::with('category')
+            ->where('id', $stockUnit->product_id)
+            ->where('min_stock', '>', 0)
+            ->withCount(['stockUnits as available_count' => function ($query) {
+                $query->where('status', 'tersedia');
+            }])
+            ->first();
+
+        if ($product && $product->available_count <= $product->min_stock) {
+            $admins = User::where('role', User::ROLE_ADMIN)->get();
+            foreach ($admins as $admin) {
+                Mail::to($admin->email)->send(new LowStockAlert(collect([$product])));
+            }
+        }
 
         return redirect()->route('stock.index', $request->only(['search', 'status', 'product_id', 'page']))
             ->with('success', "Unit {$stockUnit->qr_code} berhasil ditandai sebagai {$typeLabel}.");

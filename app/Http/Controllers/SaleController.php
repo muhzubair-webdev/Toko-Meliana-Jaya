@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\LowStockAlert;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Models\StockUnit;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class SaleController extends Controller
 {
@@ -64,6 +68,24 @@ class SaleController extends Controller
                     ->update(['status' => StockUnit::STATUS_TERJUAL]);
             }
         });
+
+        // Check for low stock on the products that were just sold
+        $affectedProductIds = $units->pluck('product_id')->unique();
+        $lowStockProducts = Product::with('category')
+            ->whereIn('id', $affectedProductIds)
+            ->where('min_stock', '>', 0)
+            ->withCount(['stockUnits as available_count' => function ($query) {
+                $query->where('status', 'tersedia');
+            }])
+            ->get()
+            ->filter(fn($p) => $p->available_count <= $p->min_stock);
+
+        if ($lowStockProducts->isNotEmpty()) {
+            $admins = User::where('role', User::ROLE_ADMIN)->get();
+            foreach ($admins as $admin) {
+                Mail::to($admin->email)->send(new LowStockAlert($lowStockProducts));
+            }
+        }
 
         return redirect()->route('sales.create')
             ->with('success', 'Transaksi berhasil disimpan!');

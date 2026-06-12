@@ -67,7 +67,45 @@
                     @endif
                 </div>
             </div>
-
+            
+            <!-- All Products List -->
+            <div class="px-4 sm:px-0 mt-8">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Semua Produk</h3>
+                <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase w-16">Foto</th>
+                                    <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Nama Produk</th>
+                                    <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Kategori</th>
+                                    <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Harga Saran</th>
+                                    <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Stok</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                @forelse($products as $product)
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td class="px-4 py-3">
+                                        <img src="{{ $product->image_url }}" alt="{{ $product->product_name }}" class="w-10 h-10 rounded-lg object-cover border border-gray-200 dark:border-gray-700">
+                                    </td>
+                                    <td class="px-4 py-4 text-sm font-medium text-gray-900 dark:text-white">{{ $product->product_name }} ({{ $product->unit }})</td>
+                                    <td class="px-4 py-4 text-sm text-gray-500">{{ $product->category->name }}</td>
+                                    <td class="px-4 py-4 text-sm font-semibold text-gray-900 dark:text-white">Rp {{ number_format($product->suggested_price, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-4 text-sm">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $product->available_count <= $product->min_stock && $product->min_stock > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' }}">{{ $product->available_count }}</span>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Belum ada produk.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($products->hasPages())
+                    <div class="p-4 border-t border-gray-200 dark:border-gray-700">{{ $products->withQueryString()->links() }}</div>
+                    @endif
+                </div>
             </div>
 
         </div>

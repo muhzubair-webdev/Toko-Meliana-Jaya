@@ -109,6 +109,11 @@
                     scanStatus.classList.add('hidden');
                     if (unit.status !== 'tersedia') { alert('Unit ' + unit.qr_code + ' tidak tersedia (status: ' + unit.status + ')'); return; }
                     if (cart.find(c => c.stock_unit_id === unit.id)) { alert('Unit ' + unit.qr_code + ' sudah ada di keranjang.'); return; }
+                    
+                    const existingItem = cart.find(c => c.product_id == unit.product_id);
+                    if (existingItem) {
+                        unit.suggested_price = existingItem.final_price;
+                    }
                     addToCart(unit);
                 })
                 .catch(() => { scanStatus.textContent = 'Unit tidak ditemukan: ' + code; setTimeout(() => scanStatus.classList.add('hidden'), 3000); });
@@ -124,18 +129,23 @@
             const q = this.value.trim();
             if (q.length < 2) { resultsDiv.classList.add('hidden'); return; }
             debounceTimer = setTimeout(() => {
-                fetch('/api/products/search?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                const excludeIds = cart.map(c => c.stock_unit_id).join(',');
+                fetch('/api/products/search?q=' + encodeURIComponent(q) + '&exclude=' + excludeIds, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(r => r.json())
-                    .then(products => {
-                        if (!products.length) { resultsDiv.innerHTML = '<div class="p-3 text-sm text-gray-500">Tidak ditemukan</div>'; resultsDiv.classList.remove('hidden'); return; }
-                        resultsDiv.innerHTML = products.map(p =>
-                            '<button type="button" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white" data-id="' + p.id + '">' +
-                            p.product_name + ' <span class="text-gray-400">(' + p.category + ')</span> — Rp ' + Number(p.suggested_price).toLocaleString('id-ID') +
+                    .then(units => {
+                        if (!units.length) { resultsDiv.innerHTML = '<div class="p-3 text-sm text-gray-500">Tidak ditemukan</div>'; resultsDiv.classList.remove('hidden'); return; }
+                        resultsDiv.innerHTML = units.map(p =>
+                            '<button type="button" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white" data-qr="' + p.qr_code + '">' +
+                            '<div class="flex justify-between items-center">' +
+                            '<span>' + p.product_name + ' <span class="text-gray-400">(' + p.category + ')</span></span>' +
+                            '<span class="font-mono text-xs text-gray-500">' + p.qr_code + '</span>' +
+                            '</div>' +
+                            '<div class="text-xs text-brand-600 mt-1">Rp ' + Number(p.suggested_price).toLocaleString('id-ID') + '</div>' +
                             '</button>'
                         ).join('');
                         resultsDiv.classList.remove('hidden');
                         resultsDiv.querySelectorAll('button').forEach(btn => {
-                            btn.addEventListener('click', () => { selectProductForManual(btn.dataset.id); resultsDiv.classList.add('hidden'); searchInput.value = ''; });
+                            btn.addEventListener('click', () => { lookupQr(btn.dataset.qr); resultsDiv.classList.add('hidden'); searchInput.value = ''; });
                         });
                     });
             }, 300);
@@ -143,48 +153,96 @@
 
         document.addEventListener('click', (e) => { if (!resultsDiv.contains(e.target) && e.target !== searchInput) resultsDiv.classList.add('hidden'); });
 
-        function selectProductForManual(productId) {
-            // Find first available stock unit for this product
-            fetch('/api/stock-unit/find?product_id=' + productId, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(r => r.json())
-                .then(unit => {
-                    if (unit.error) { alert(unit.error); return; }
-                    if (cart.find(c => c.stock_unit_id === unit.id)) { alert('Unit sudah ada di keranjang.'); return; }
-                    addToCart(unit);
-                })
-                .catch(() => alert('Tidak ada unit tersedia untuk produk ini.'));
-        }
+        // Function selectProductForManual removed, logic handled in lookupQr
 
         // ── Cart Management ──
         function addToCart(unit) {
-            cart.push({ stock_unit_id: unit.id, qr_code: unit.qr_code, product_name: unit.product_name, purchase_price: parseFloat(unit.purchase_price), final_price: parseFloat(unit.suggested_price) });
+            cart.push({ 
+                stock_unit_id: unit.id, 
+                qr_code: unit.qr_code, 
+                product_id: unit.product_id,
+                product_name: unit.product_name, 
+                purchase_price: parseFloat(unit.purchase_price), 
+                final_price: parseFloat(unit.suggested_price) 
+            });
             renderCart();
         }
 
-        function removeFromCart(idx) { cart.splice(idx, 1); renderCart(); }
+        function incrementQuantity(productId) {
+            const excludeIds = cart.filter(c => c.product_id == productId).map(c => c.stock_unit_id).join(',');
+            fetch('/api/stock-unit/find?product_id=' + productId + '&exclude=' + excludeIds, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.json())
+                .then(unit => {
+                    if (unit.error) { alert(unit.error); return; }
+                    const existingItem = cart.find(c => c.product_id == productId);
+                    if (existingItem) {
+                        unit.suggested_price = existingItem.final_price;
+                    }
+                    addToCart(unit);
+                })
+                .catch(() => alert('Stok tidak cukup untuk menambah jumlah produk ini.'));
+        }
+
+        function decrementQuantity(productId) {
+            for (let i = cart.length - 1; i >= 0; i--) {
+                if (cart[i].product_id == productId) {
+                    cart.splice(i, 1);
+                    break;
+                }
+            }
+            renderCart();
+        }
+
+        function updatePrice(productId, newPrice) {
+            cart.forEach(c => {
+                if (c.product_id == productId) {
+                    c.final_price = newPrice;
+                }
+            });
+            updateTotal();
+        }
 
         function renderCart() {
             if (cart.length === 0) { cartList.innerHTML = ''; cartEmpty.classList.remove('hidden'); btnSave.disabled = true; totalPriceEl.textContent = 'Rp 0'; return; }
             cartEmpty.classList.add('hidden');
             btnSave.disabled = false;
 
-            cartList.innerHTML = cart.map((item, i) =>
+            const groups = {};
+            cart.forEach(item => {
+                if (!groups[item.product_id]) {
+                    groups[item.product_id] = {
+                        product_id: item.product_id,
+                        product_name: item.product_name,
+                        units: [],
+                        final_price: item.final_price,
+                        total_purchase_price: 0
+                    };
+                }
+                groups[item.product_id].units.push(item);
+                groups[item.product_id].total_purchase_price += item.purchase_price;
+            });
+
+            cartList.innerHTML = Object.values(groups).map((group, i) =>
                 '<li class="p-4 flex flex-col sm:flex-row sm:items-center justify-between">' +
-                    '<div class="mb-2 sm:mb-0"><h4 class="text-sm font-bold text-gray-900 dark:text-white">' + item.product_name + '</h4>' +
-                    '<p class="text-xs text-gray-500">QR: ' + item.qr_code + ' <span class="mx-1">•</span> HPP: Rp ' + Number(item.purchase_price).toLocaleString('id-ID') + '</p></div>' +
-                    '<div class="flex items-center space-x-2">' +
-                        '<div class="relative rounded-md shadow-sm"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-500 text-sm">Rp</span></div>' +
-                        '<input type="number" min="0" value="' + item.final_price + '" class="cart-price block w-32 rounded-md border-gray-300 pl-8 focus:border-brand-500 focus:ring-brand-500 sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white" data-index="' + i + '"></div>' +
-                        '<button type="button" onclick="window.removeCartItem(' + i + ')" class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-md"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>' +
-                    '</div></li>'
+                    '<div class="mb-3 sm:mb-0 w-full sm:w-1/3">' +
+                        '<h4 class="text-sm font-bold text-gray-900 dark:text-white">' + group.product_name + '</h4>' +
+                        '<div class="font-mono text-xs text-gray-500 mb-1" style="word-break: break-all;">QR: ' + group.units.map(u => u.qr_code).join(', ') + '</div>' +
+                        '<p class="text-xs text-gray-500">Jumlah Unit: ' + group.units.length + ' <span class="mx-1">•</span> HPP/unit: Rp ' + Number(Math.round(group.total_purchase_price / group.units.length)).toLocaleString('id-ID') + '</p>' +
+                    '</div>' +
+                    '<div class="flex items-center space-x-4 w-full sm:w-2/3 justify-between sm:justify-end">' +
+                        '<div class="flex items-center border border-gray-300 dark:border-gray-600 rounded-md shadow-sm">' +
+                            '<button type="button" onclick="window.decrementQty(' + group.product_id + ')" class="px-3 py-1 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-l-md text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-gray-600 font-bold">-</button>' +
+                            '<div class="px-4 py-1 text-sm font-medium text-gray-900 dark:text-white bg-white dark:bg-gray-800">' + group.units.length + '</div>' +
+                            '<button type="button" onclick="window.incrementQty(' + group.product_id + ')" class="px-3 py-1 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-r-md text-gray-700 dark:text-gray-300 border-l border-gray-300 dark:border-gray-600 font-bold">+</button>' +
+                        '</div>' +
+                        '<div class="relative rounded-md shadow-sm w-32">' +
+                            '<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-500 text-sm">Rp</span></div>' +
+                            '<input type="number" min="0" value="' + group.final_price + '" onchange="window.updatePrice(' + group.product_id + ', parseFloat(this.value) || 0)" class="block w-full rounded-md border-gray-300 pl-8 focus:border-brand-500 focus:ring-brand-500 sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white">' +
+                        '</div>' +
+                    '</div>' +
+                '</li>'
             ).join('');
 
-            cartList.querySelectorAll('.cart-price').forEach(input => {
-                input.addEventListener('change', function() {
-                    cart[parseInt(this.dataset.index)].final_price = parseFloat(this.value) || 0;
-                    updateTotal();
-                });
-            });
             updateTotal();
         }
 
@@ -193,7 +251,9 @@
             totalPriceEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
         }
 
-        window.removeCartItem = removeFromCart;
+        window.incrementQty = incrementQuantity;
+        window.decrementQty = decrementQuantity;
+        window.updatePrice = updatePrice;
 
         // ── Save Transaction ──
         btnSave.addEventListener('click', function() {

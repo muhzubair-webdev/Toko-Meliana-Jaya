@@ -57,6 +57,14 @@ class DashboardController extends Controller
             })
             ->sortBy('available_count');
 
+        // All products for listing
+        $products = Product::with('category')
+            ->withCount(['stockUnits as available_count' => function ($query) {
+                $query->where('status', 'tersedia');
+            }])
+            ->orderBy('product_name')
+            ->paginate(15);
+
         return view('dashboard', compact(
             'monthlyProfit',
             'monthlyRevenue',
@@ -65,6 +73,7 @@ class DashboardController extends Controller
             'todayTransactionCount',
             'todayRevenue',
             'lowStockProducts',
+            'products',
             'now'
         ));
     }

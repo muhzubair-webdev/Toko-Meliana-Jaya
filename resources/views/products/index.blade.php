@@ -36,6 +36,7 @@
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr>
+                                <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase w-16">Foto</th>
                                 <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Nama Produk</th>
                                 <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Kategori</th>
                                 <th class="px-4 py-3 border-b bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Harga Saran</th>
@@ -48,6 +49,9 @@
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse($products as $product)
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td class="px-4 py-3">
+                                    <img src="{{ $product->image_url }}" alt="{{ $product->product_name }}" class="w-10 h-10 rounded-lg object-cover border border-gray-200 dark:border-gray-700">
+                                </td>
                                 <td class="px-4 py-4 text-sm font-medium text-gray-900 dark:text-white">{{ $product->product_name }} ({{ $product->unit }})</td>
                                 <td class="px-4 py-4 text-sm text-gray-500">{{ $product->category->name }}</td>
                                 <td class="px-4 py-4 text-sm font-semibold text-gray-900 dark:text-white">Rp {{ number_format($product->suggested_price, 0, ',', '.') }}</td>
@@ -56,13 +60,13 @@
                                 </td>
                                 @if(auth()->user()->isAdmin())
                                 <td class="px-4 py-4 text-sm text-right space-x-2">
-                                    <button onclick="openEditModal({{ $product->id }},'{{ addslashes($product->product_name) }}',{{ $product->category_id }},'{{ $product->unit }}',{{ $product->min_stock }},{{ $product->suggested_price }})" class="text-brand-600 hover:text-brand-900">Edit</button>
+                                    <button onclick="openEditModal({{ $product->id }},'{{ addslashes($product->product_name) }}',{{ $product->category_id }},'{{ $product->unit }}',{{ $product->min_stock }},{{ $product->suggested_price }},'{{ $product->image_url }}')" class="text-brand-600 hover:text-brand-900">Edit</button>
                                     <form method="POST" action="{{ route('products.destroy', $product) }}" class="inline" onsubmit="return confirm('Hapus?')">@csrf @method('DELETE')<button type="submit" class="text-red-600 hover:text-red-900">Hapus</button></form>
                                 </td>
                                 @endif
                             </tr>
                             @empty
-                            <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Belum ada produk.</td></tr>
+                            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">Belum ada produk.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -80,7 +84,7 @@
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75" onclick="document.getElementById('addProductModal').classList.add('hidden')"></div>
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md relative z-10 p-6">
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Tambah Produk</h3>
-                <form method="POST" action="{{ route('products.store') }}">@csrf
+                <form method="POST" action="{{ route('products.store') }}" enctype="multipart/form-data">@csrf
                     <div class="space-y-4">
                         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kategori</label><select name="category_id" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm">@foreach($categories as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></div>
                         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Produk</label><input type="text" name="product_name" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm"></div>
@@ -89,6 +93,11 @@
                             <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Min Stok</label><input type="number" name="min_stock" value="0" min="0" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm"></div>
                         </div>
                         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Harga Jual Saran (Rp)</label><input type="number" name="suggested_price" value="0" min="0" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm"></div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Produk</label>
+                            <input type="file" name="image" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-gray-700 dark:file:text-gray-300">
+                            <p class="mt-1 text-xs text-gray-400">JPG, PNG, atau WebP. Maks 2MB.</p>
+                        </div>
                     </div>
                     <div class="mt-6 flex justify-end space-x-2">
                         <button type="button" onclick="document.getElementById('addProductModal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md">Batal</button>
@@ -105,7 +114,7 @@
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75" onclick="document.getElementById('editProductModal').classList.add('hidden')"></div>
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md relative z-10 p-6">
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Produk</h3>
-                <form method="POST" id="editProductForm">@csrf @method('PUT')
+                <form method="POST" id="editProductForm" enctype="multipart/form-data">@csrf @method('PUT')
                     <div class="space-y-4">
                         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kategori</label><select name="category_id" id="edit_category_id" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm">@foreach($categories as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></div>
                         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Produk</label><input type="text" name="product_name" id="edit_product_name" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm"></div>
@@ -114,6 +123,14 @@
                             <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Min Stok</label><input type="number" name="min_stock" id="edit_min_stock" min="0" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm"></div>
                         </div>
                         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Harga Saran (Rp)</label><input type="number" name="suggested_price" id="edit_suggested_price" min="0" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 sm:text-sm"></div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Produk</label>
+                            <div class="mt-1 flex items-center gap-4">
+                                <img id="edit_image_preview" src="" alt="Preview" class="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700">
+                                <input type="file" name="image" accept="image/jpeg,image/png,image/webp" class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-gray-700 dark:file:text-gray-300">
+                            </div>
+                            <p class="mt-1 text-xs text-gray-400">Kosongkan jika tidak ingin mengganti foto.</p>
+                        </div>
                     </div>
                     <div class="mt-6 flex justify-end space-x-2">
                         <button type="button" onclick="document.getElementById('editProductModal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md">Batal</button>
@@ -126,13 +143,14 @@
 
     @push('scripts')
     <script>
-    function openEditModal(id,name,catId,unit,minStock,price){
+    function openEditModal(id,name,catId,unit,minStock,price,imageUrl){
         document.getElementById('editProductForm').action='/products/'+id;
         document.getElementById('edit_product_name').value=name;
         document.getElementById('edit_category_id').value=catId;
         document.getElementById('edit_unit').value=unit;
         document.getElementById('edit_min_stock').value=minStock;
         document.getElementById('edit_suggested_price').value=price;
+        document.getElementById('edit_image_preview').src=imageUrl;
         document.getElementById('editProductModal').classList.remove('hidden');
     }
     </script>

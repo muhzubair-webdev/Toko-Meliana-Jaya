@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -45,7 +46,12 @@ class ProductController extends Controller
             'unit' => 'required|string|max:50',
             'min_stock' => 'required|integer|min:0',
             'suggested_price' => 'required|numeric|min:0',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
         ]);
+
+        if ($request->hasFile('image')) {
+            $validated['image'] = $request->file('image')->store('products', 'public');
+        }
 
         Product::create($validated);
 
@@ -63,7 +69,16 @@ class ProductController extends Controller
             'unit' => 'required|string|max:50',
             'min_stock' => 'required|integer|min:0',
             'suggested_price' => 'required|numeric|min:0',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
         ]);
+
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
+            $validated['image'] = $request->file('image')->store('products', 'public');
+        }
 
         $product->update($validated);
 
@@ -86,21 +101,33 @@ class ProductController extends Controller
     public function search(Request $request)
     {
         $term = $request->get('q', '');
+        $exclude = $request->get('exclude', '');
+        $excludeIds = array_filter(explode(',', $exclude));
 
-        $products = Product::with('category')
-            ->where('product_name', 'like', "%{$term}%")
-            ->limit(10)
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'id' => $p->id,
-                    'product_name' => $p->product_name,
-                    'category' => $p->category->name,
-                    'unit' => $p->unit,
-                    'suggested_price' => $p->suggested_price,
-                ];
+        $query = \App\Models\StockUnit::with('product.category')
+            ->where('status', 'tersedia')
+            ->where(function($q) use ($term) {
+                $q->where('qr_code', 'like', "%{$term}%")
+                  ->orWhereHas('product', function($pq) use ($term) {
+                      $pq->where('product_name', 'like', "%{$term}%");
+                  });
             });
 
-        return response()->json($products);
+        if (!empty($excludeIds)) {
+            $query->whereNotIn('id', $excludeIds);
+        }
+
+        $units = $query->limit(10)->get()->map(function ($unit) {
+            return [
+                'stock_unit_id' => $unit->id,
+                'qr_code' => $unit->qr_code,
+                'product_id' => $unit->product_id,
+                'product_name' => $unit->product->product_name,
+                'category' => $unit->product->category->name,
+                'suggested_price' => $unit->product->suggested_price,
+            ];
+        });
+
+        return response()->json($units);
     }
 }
