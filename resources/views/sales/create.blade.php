@@ -109,7 +109,7 @@
                     scanStatus.classList.add('hidden');
                     if (unit.status !== 'tersedia') { alert('Unit ' + unit.qr_code + ' tidak tersedia (status: ' + unit.status + ')'); return; }
                     if (cart.find(c => c.stock_unit_id === unit.id)) { alert('Unit ' + unit.qr_code + ' sudah ada di keranjang.'); return; }
-                    
+
                     const existingItem = cart.find(c => c.product_id == unit.product_id);
                     if (existingItem) {
                         unit.suggested_price = existingItem.final_price;
@@ -157,13 +157,13 @@
 
         // ── Cart Management ──
         function addToCart(unit) {
-            cart.push({ 
-                stock_unit_id: unit.id, 
-                qr_code: unit.qr_code, 
+            cart.push({
+                stock_unit_id: unit.id,
+                qr_code: unit.qr_code,
                 product_id: unit.product_id,
-                product_name: unit.product_name, 
-                purchase_price: parseFloat(unit.purchase_price), 
-                final_price: parseFloat(unit.suggested_price) 
+                product_name: unit.product_name,
+                purchase_price: parseFloat(unit.purchase_price),
+                final_price: parseFloat(unit.suggested_price)
             });
             renderCart();
         }
