@@ -41,10 +41,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/stock/{stockUnit}/adjust', [StockUnitController::class, 'adjust'])->name('stock.adjust');
     });
 
-    // ─── Sales (All users can create sales) ──────────────────────────
-    Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
-    Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
-    Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+    // ─── Sales (Staff only — Admin cannot access) ─────────────────────
+    Route::middleware('staff')->group(function () {
+        Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+        Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
+        Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+    });
 
     // ─── Adjustments (Admin only for create, all can view history) ───
     Route::get('/adjustments', [AdjustmentController::class, 'index'])->name('adjustments.index')->middleware('admin');

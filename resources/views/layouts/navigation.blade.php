@@ -23,9 +23,11 @@
                         {{ __('Stok') }}
                     </x-nav-link>
                     @endif
+                    @if(!auth()->user()->isAdmin())
                     <x-nav-link :href="route('sales.create')" :active="request()->routeIs('sales.*')">
                         {{ __('Jual') }}
                     </x-nav-link>
+                    @endif
                     @if(auth()->user()->isAdmin())
                     <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                         {{ __('Laporan') }}
