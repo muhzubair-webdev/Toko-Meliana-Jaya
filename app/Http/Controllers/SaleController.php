@@ -83,7 +83,11 @@ class SaleController extends Controller
         if ($lowStockProducts->isNotEmpty()) {
             $admins = User::where('role', User::ROLE_ADMIN)->get();
             foreach ($admins as $admin) {
-                Mail::to($admin->email)->send(new LowStockAlert($lowStockProducts));
+                try {
+                    Mail::to($admin->email)->send(new LowStockAlert($lowStockProducts));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Gagal mengirim email notifikasi stok menipis ke ' . $admin->email . ': ' . $e->getMessage());
+                }
             }
         }
 

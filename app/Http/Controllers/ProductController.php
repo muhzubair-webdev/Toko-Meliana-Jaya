@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\LowStockAlert;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
@@ -53,7 +57,26 @@ class ProductController extends Controller
             $validated['image'] = $request->file('image')->store('products', 'public');
         }
 
-        Product::create($validated);
+        $product = Product::create($validated);
+
+        // Check if the new product is immediately below min_stock (0 stock units exist)
+        if ($product->min_stock > 0) {
+            $product->loadCount(['stockUnits as available_count' => function ($query) {
+                $query->where('status', 'tersedia');
+            }]);
+            $product->load('category');
+
+            if ($product->available_count <= $product->min_stock) {
+                $admins = User::where('role', User::ROLE_ADMIN)->get();
+                foreach ($admins as $admin) {
+                    try {
+                        Mail::to($admin->email)->send(new LowStockAlert(collect([$product])));
+                    } catch (\Exception $e) {
+                        Log::error('Gagal mengirim email notifikasi stok menipis ke ' . $admin->email . ': ' . $e->getMessage());
+                    }
+                }
+            }
+        }
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan.');
     }
@@ -81,6 +104,25 @@ class ProductController extends Controller
         }
 
         $product->update($validated);
+
+        // Check if updated min_stock now puts the product below threshold
+        if ($product->min_stock > 0) {
+            $product->loadCount(['stockUnits as available_count' => function ($query) {
+                $query->where('status', 'tersedia');
+            }]);
+            $product->load('category');
+
+            if ($product->available_count <= $product->min_stock) {
+                $admins = User::where('role', User::ROLE_ADMIN)->get();
+                foreach ($admins as $admin) {
+                    try {
+                        Mail::to($admin->email)->send(new LowStockAlert(collect([$product])));
+                    } catch (\Exception $e) {
+                        Log::error('Gagal mengirim email notifikasi stok menipis ke ' . $admin->email . ': ' . $e->getMessage());
+                    }
+                }
+            }
+        }
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui.');
     }

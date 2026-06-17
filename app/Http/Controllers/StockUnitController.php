@@ -83,6 +83,24 @@ class StockUnitController extends Controller
             $createdUnits[] = $unit;
         }
 
+        // Check if the product is still at or below min_stock after adding new units
+        if ($product->min_stock > 0) {
+            $product->loadCount(['stockUnits as available_count' => function ($query) {
+                $query->where('status', 'tersedia');
+            }]);
+
+            if ($product->available_count <= $product->min_stock) {
+                $admins = User::where('role', User::ROLE_ADMIN)->get();
+                foreach ($admins as $admin) {
+                    try {
+                        Mail::to($admin->email)->send(new LowStockAlert(collect([$product])));
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('Gagal mengirim email notifikasi stok menipis ke ' . $admin->email . ': ' . $e->getMessage());
+                    }
+                }
+            }
+        }
+
         return redirect()->route('stock.index')
             ->with('success', count($createdUnits) . ' unit berhasil ditambahkan dengan QR Code.');
     }
@@ -186,7 +204,11 @@ class StockUnitController extends Controller
         if ($product && $product->available_count <= $product->min_stock) {
             $admins = User::where('role', User::ROLE_ADMIN)->get();
             foreach ($admins as $admin) {
-                Mail::to($admin->email)->send(new LowStockAlert(collect([$product])));
+                try {
+                    Mail::to($admin->email)->send(new LowStockAlert(collect([$product])));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Gagal mengirim email notifikasi stok menipis ke ' . $admin->email . ': ' . $e->getMessage());
+                }
             }
         }
 
